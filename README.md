@@ -1,5 +1,3 @@
-﻿# musico-recommendation-engine
-
 # 🎵 Musico Recommendation Engine
 
 A music recommendation app built with Python and the Spotify API.
@@ -20,3 +18,4 @@ It suggests songs based on your favorite tracks and provides audio analysis char
 4. Add your Client ID and Secret to `app.py`
 5. Run the app:
    `streamlit run app.py`
+
