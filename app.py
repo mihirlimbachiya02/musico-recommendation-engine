@@ -30,16 +30,26 @@ def get_spotify_client():
         scope="user-library-read"
     ))
 
-def get_youtube_link(song_name, artist_name):
+# --- UPDATED FUNCTION: GETS STATS NOW ---
+def get_youtube_data(song_name, artist_name):
     query = f"{song_name} {artist_name} official audio"
     try:
         results = YoutubeSearch(query, max_results=1).to_dict()
         if results:
-            video_id = results[0]['id']
-            return f"https://www.youtube.com/watch?v={video_id}", results[0]['thumbnails'][0], video_id
+            video = results[0]
+            video_id = video['id']
+            link = f"https://www.youtube.com/watch?v={video_id}"
+            thumbnail = video['thumbnails'][0]
+            
+            # Extract stats (Views, Duration, Channel)
+            views = video.get('views', 'N/A')
+            duration = video.get('duration', 'N/A')
+            channel = video.get('channel', 'Unknown Channel')
+            
+            return link, thumbnail, video_id, views, duration, channel
     except:
-        return None, None, None
-    return None, None, None
+        return None, None, None, None, None, None
+    return None, None, None, None, None, None
 
 try:
     sp = get_spotify_client()
@@ -58,7 +68,7 @@ with st.container():
     col_a, col_b, col_c = st.columns([1, 3, 1])
     with col_b:
         with st.form(key='search_form'):
-            search_query = st.text_input("", placeholder="🔍 Search for a song (e.g. O Re Piya)...", label_visibility="collapsed")
+            search_query = st.text_input("", placeholder="🔍 Search for a song (e.g. Tumhe Dillagi)...", label_visibility="collapsed")
             submit_button = st.form_submit_button(label='Search')
 
 # --- 5. MAIN LOGIC ---
@@ -72,7 +82,9 @@ if submit_button and search_query:
     else:
         track = results['tracks']['items'][0]
         artist = track['artists'][0]
-        yt_url, yt_thumb, yt_id = get_youtube_link(track['name'], artist['name'])
+        
+        # Call the new function
+        yt_url, yt_thumb, yt_id, yt_views, yt_duration, yt_channel = get_youtube_data(track['name'], artist['name'])
 
         # TABS LAYOUT
         tab1, tab2, tab3 = st.tabs(["🎧 Player", "📊 Audio Stats", "🔥 Similar Songs"])
@@ -94,14 +106,24 @@ if submit_button and search_query:
                 else:
                     st.warning("Video not found")
 
-        # TAB 2: STATS (Now Crash-Proof)
+        # TAB 2: STATS (YouTube + Spotify)
         with tab2:
-            st.subheader("Vibe Analysis")
+            st.subheader("📈 Track Statistics")
+            
+            # 1. Show YouTube Stats First (They always exist!)
+            col_a, col_b, col_c = st.columns(3)
+            col_a.metric("YouTube Views", yt_views.split(' ')[0] if yt_views else "N/A") # Clean up 'views' text
+            col_b.metric("Duration", yt_duration)
+            col_c.metric("Channel", yt_channel)
+            
+            st.divider()
+
+            # 2. Show Spotify Vibe Stats (If available)
+            st.subheader("🎵 Spotify Vibe Analysis")
             features = None
             try:
-                # We try to get data, but if it fails (403 error), we just skip it
                 features = sp.audio_features([track['id']])[0]
-            except Exception as e:
+            except Exception:
                 features = None
             
             if features:
@@ -115,7 +137,7 @@ if submit_button and search_query:
                 fig.update_layout(plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)', font_color="white")
                 st.plotly_chart(fig, use_container_width=True)
             else:
-                st.info("⚠️ Audio analytics are not available for this specific track. (Spotify Restriction)")
+                st.info("⚠️ Spotify Audio Features (Energy/Danceability) are restricted for this track.")
 
         # TAB 3: RECOMMENDATIONS
         with tab3:
