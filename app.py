@@ -24,8 +24,8 @@ local_css("style.css")
 @st.cache_resource
 def get_spotify_client():
     return spotipy.Spotify(auth_manager=SpotifyOAuth(
-        client_id='71e54fe16f2a45eaadf14ecbbe120dc3',          # <--- PASTE REAL ID
-        client_secret='76d2acb5d8d24c89a9e7831fa76b4143',  # <--- PASTE REAL SECRET
+        client_id='YOUR_CLIENT_ID_HERE',          # <--- PASTE REAL ID
+        client_secret='YOUR_CLIENT_SECRET_HERE',  # <--- PASTE REAL SECRET
         redirect_uri='http://127.0.0.1:8888/callback',
         scope="user-library-read"
     ))
