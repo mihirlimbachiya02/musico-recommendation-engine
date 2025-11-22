@@ -1,14 +1,13 @@
 import spotipy
 from spotipy.oauth2 import SpotifyOAuth
 
-# 1. SETUP: Authenticate with Spotify
 # We use the exact Redirect URI you set in the dashboard: http://localhost:8888/callback
 sp = spotipy.Spotify(auth_manager=SpotifyOAuth(
-    client_id='71e54fe16f2a45eaadf14ecbbe120dc3',          # <--- PASTE YOUR CLIENT ID
-    client_secret='76d2acb5d8d24c89a9e7831fa76b4143',  # <--- PASTE YOUR CLIENT SECRET
-    redirect_uri='https://musico.com/callback',
-    scope="user-library-read"                 # Permission to read data
-))
+        client_id='YOUR_CLIENT_ID_HERE',          # <--- User must paste their own ID
+        client_secret='YOUR_CLIENT_SECRET_HERE',  # <--- User must paste their own Secret
+        redirect_uri='http://127.0.0.1:8888/callback',
+        scope="user-library-read"
+    ))
 
 print("Successfully connected to Spotify!")
 
