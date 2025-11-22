@@ -1,0 +1,73 @@
+/* 1. Main Background Gradient */
+.stApp {
+    background: linear-gradient(to bottom right, #000000, #181818);
+    color: white;
+}
+
+/* 2. Custom Title Font */
+h1 {
+    font-family: 'Helvetica Neue', sans-serif;
+    font-weight: 700;
+    color: #1DB954;
+}
+
+/* 3. Style the Search Bar */
+.stTextInput > div > div > input {
+    background-color: #282828;
+    color: white;
+    border-radius: 30px; /* Rounded corners */
+    border: 1px solid #404040; /* Subtle border */
+    padding: 12px 20px;
+}
+.stTextInput > div > div > input:focus {
+    border-color: #1DB954; /* Green border when typing */
+}
+
+/* 4. Style the "Search" Button */
+.stButton > button {
+    background-color: #1DB954;
+    color: white;
+    border-radius: 30px;
+    border: none;
+    font-weight: bold;
+    padding: 10px 20px;
+    transition: all 0.3s ease;
+}
+.stButton > button:hover {
+    transform: scale(1.02);
+    background-color: #1ed760;
+    box-shadow: 0 4px 15px rgba(29, 185, 84, 0.3);
+}
+
+/* --- 5. FIXED TAB STYLING (The important part) --- */
+
+/* The Container for the tabs */
+.stTabs [data-baseweb="tab-list"] {
+    gap: 10px; /* Space between buttons */
+    background-color: transparent;
+    border-bottom: none; /* Remove default line */
+}
+
+/* The Individual Tab Buttons (Inactive) */
+.stTabs [data-baseweb="tab"] {
+    background-color: #333333; /* Dark Grey */
+    border-radius: 30px;       /* Pill shape */
+    padding: 10px 25px;        /* More breathing room */
+    color: #b3b3b3;            /* Light grey text */
+    font-weight: 600;
+    border: none;
+    height: auto;              /* Let it grow with text */
+    flex: 0 1 auto;            /* Prevent stretching */
+}
+
+/* The Active Tab Button (Selected) */
+.stTabs [aria-selected="true"] {
+    background-color: #1DB954 !important; /* Spotify Green */
+    color: white !important;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+}
+
+/* Remove the default red underline animation */
+.stTabs [data-baseweb="tab-highlight"] {
+    display: none;
+}

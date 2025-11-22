@@ -2,52 +2,44 @@ import streamlit as st
 import spotipy
 from spotipy.oauth2 import SpotifyOAuth
 import streamlit.components.v1 as components
-from youtube_search import YoutubeSearch # The new magic tool
+from youtube_search import YoutubeSearch
+import pandas as pd
+import plotly.express as px
+import time
 
 # --- 1. PAGE CONFIG ---
 st.set_page_config(page_title="Musico", page_icon="🎵", layout="wide")
 
-# Custom CSS for cool buttons
-st.markdown("""
-<style>
-    .stButton button {
-        width: 100%;
-        border-radius: 5px;
-    }
-    .stTextInput > div > div > input {
-        font-size: 20px; padding: 12px;
-    }
-</style>
-""", unsafe_allow_html=True)
+# --- 2. LOAD EXTERNAL CSS ---
+def local_css(file_name):
+    try:
+        with open(file_name) as f:
+            st.markdown(f'<style>{f.read()}</style>', unsafe_allow_html=True)
+    except FileNotFoundError:
+        st.warning(f"Could not find {file_name}. Make sure it is in the same folder as app.py")
 
-# --- 2. AUTHENTICATION ---
+local_css("style.css")
+
+# --- 3. AUTHENTICATION ---
 @st.cache_resource
 def get_spotify_client():
     return spotipy.Spotify(auth_manager=SpotifyOAuth(
-        client_id='YOUR_CLIENT_ID_HERE',          # <--- PASTE ID
-        client_secret='YOUR_CLIENT_SECRET_HERE',  # <--- PASTE SECRET
+        client_id='71e54fe16f2a45eaadf14ecbbe120dc3',          # <--- PASTE REAL ID
+        client_secret='76d2acb5d8d24c89a9e7831fa76b4143',  # <--- PASTE REAL SECRET
         redirect_uri='http://127.0.0.1:8888/callback',
         scope="user-library-read"
     ))
 
-# --- 3. NEW HELPER FUNCTIONS ---
 def get_youtube_link(song_name, artist_name):
-    """Searches YouTube and returns the first video URL and Thumbnail"""
     query = f"{song_name} {artist_name} official audio"
     try:
-        # Search YouTube
         results = YoutubeSearch(query, max_results=1).to_dict()
         if results:
             video_id = results[0]['id']
-            video_url = f"https://www.youtube.com/watch?v={video_id}"
-            thumbnail = results[0]['thumbnails'][0]
-            return video_url, thumbnail, video_id
+            return f"https://www.youtube.com/watch?v={video_id}", results[0]['thumbnails'][0], video_id
     except:
         return None, None, None
     return None, None, None
-
-def make_clickable_link(url, text):
-    return f'<a href="{url}" target="_blank" style="text-decoration:none; color:#1DB954; font-weight:bold;">{text}</a>'
 
 try:
     sp = get_spotify_client()
@@ -56,81 +48,82 @@ except:
     st.stop()
 
 # --- 4. HERO SECTION ---
-st.title("🎵 Musico")
-st.write("Search once, listen everywhere (Spotify, YouTube, Apple Music).")
+col1, col2, col3 = st.columns([1, 2, 1])
+with col2:
+    st.title("🎵 Musico")
+    st.write("The Universal Music Finder")
 
-with st.form(key='search_form'):
-    col1, col2 = st.columns([4, 1])
-    with col1:
-        search_query = st.text_input("Search for a song...", placeholder="e.g., O Re Piya")
-    with col2:
-        st.write("")
-        st.write("")
-        submit_button = st.form_submit_button(label='🔍 Find')
+# Search Bar
+with st.container():
+    col_a, col_b, col_c = st.columns([1, 3, 1])
+    with col_b:
+        with st.form(key='search_form'):
+            search_query = st.text_input("", placeholder="🔍 Search for a song (e.g. O Re Piya)...", label_visibility="collapsed")
+            submit_button = st.form_submit_button(label='Search')
 
-# --- 5. RESULTS ---
+# --- 5. MAIN LOGIC ---
 if submit_button and search_query:
-    # A. Search Spotify
-    results = sp.search(q=search_query, type='track', limit=1)
+    with st.spinner('Searching Spotify & YouTube databases...'):
+        time.sleep(1) 
+        results = sp.search(q=search_query, type='track', limit=1)
     
     if not results['tracks']['items']:
-        st.error("Song not found on Spotify.")
+        st.error("Song not found.")
     else:
         track = results['tracks']['items'][0]
         artist = track['artists'][0]
-        track_name = track['name']
-        artist_name = artist['name']
+        yt_url, yt_thumb, yt_id = get_youtube_link(track['name'], artist['name'])
 
-        # B. Search YouTube (The new part)
-        yt_url, yt_thumb, yt_id = get_youtube_link(track_name, artist_name)
-        
-        st.divider()
-        
-        # --- LAYOUT: 2 Columns ---
-        col_left, col_right = st.columns([1, 1])
-        
-        # LEFT: Spotify Player
-        with col_left:
-            st.subheader("🎧 Spotify")
-            st.image(track['album']['images'][0]['url'], width=300)
-            st.markdown(f"### {track_name}")
-            st.markdown(f"**{artist_name}**")
-            
-            # Spotify Embed
-            components.iframe(f"https://open.spotify.com/embed/track/{track['id']}", height=80)
-            
-            # External Links
-            st.markdown("##### 🔗 Open on other apps:")
-            # We generate "Smart Search Links"
-            yt_music_url = f"https://music.youtube.com/search?q={track_name}+{artist_name}"
-            apple_url = f"https://music.apple.com/us/search?term={track_name}+{artist_name}"
-            
-            c1, c2 = st.columns(2)
-            c1.markdown(f"[🔴 YouTube Music]({yt_music_url})")
-            c2.markdown(f"[🍎 Apple Music]({apple_url})")
+        # TABS LAYOUT
+        tab1, tab2, tab3 = st.tabs(["🎧 Player", "📊 Audio Stats", "🔥 Similar Songs"])
 
-        # RIGHT: YouTube Video Player
-        with col_right:
-            st.subheader("📺 YouTube Video")
-            if yt_url:
-                # Native Streamlit Video Player
-                st.video(yt_url)
+        # TAB 1: PLAYER
+        with tab1:
+            c1, c2 = st.columns([1, 1])
+            with c1:
+                st.subheader("Spotify Audio")
+                st.image(track['album']['images'][0]['url'], width=300)
+                st.markdown(f"### {track['name']}")
+                st.caption(f"by {artist['name']}")
+                components.iframe(f"https://open.spotify.com/embed/track/{track['id']}", height=80)
+            
+            with c2:
+                st.subheader("YouTube Video")
+                if yt_url:
+                    st.video(yt_url)
+                else:
+                    st.warning("Video not found")
+
+        # TAB 2: STATS (Now Crash-Proof)
+        with tab2:
+            st.subheader("Vibe Analysis")
+            features = None
+            try:
+                # We try to get data, but if it fails (403 error), we just skip it
+                features = sp.audio_features([track['id']])[0]
+            except Exception as e:
+                features = None
+            
+            if features:
+                stats = {
+                    'Feature': ['Danceability', 'Energy', 'Valence (Happy)', 'Acousticness'],
+                    'Value': [features['danceability'], features['energy'], features['valence'], features['acousticness']]
+                }
+                df_stats = pd.DataFrame(stats)
+                fig = px.bar(df_stats, x='Feature', y='Value', color='Value', 
+                             color_continuous_scale='Greens', range_y=[0, 1])
+                fig.update_layout(plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)', font_color="white")
+                st.plotly_chart(fig, use_container_width=True)
             else:
-                st.warning("Could not find video on YouTube.")
+                st.info("⚠️ Audio analytics are not available for this specific track. (Spotify Restriction)")
 
-        # --- C. RECOMMENDATIONS ---
-        st.divider()
-        st.subheader(f"🔥 More like {artist_name}")
-        
-        top_tracks = sp.artist_top_tracks(artist['id'], country='IN')
-        
-        # Grid of 3
-        cols = st.columns(3)
-        for idx, rec_track in enumerate(top_tracks['tracks'][:3]):
-            with cols[idx]:
-                st.image(rec_track['album']['images'][0]['url'])
-                st.write(f"**{rec_track['name']}**")
-                # Smart Link for recommendations too
-                search_q = f"{rec_track['name']} {rec_track['artists'][0]['name']}"
-                yt_search = f"https://www.youtube.com/results?search_query={search_q}"
-                st.markdown(f"[▶ Watch on YouTube]({yt_search})")
+        # TAB 3: RECOMMENDATIONS
+        with tab3:
+            st.subheader(f"More from {artist['name']}")
+            top_tracks = sp.artist_top_tracks(artist['id'], country='IN')
+            cols = st.columns(4)
+            for idx, rec in enumerate(top_tracks['tracks'][:4]):
+                with cols[idx]:
+                    st.image(rec['album']['images'][0]['url'])
+                    st.caption(rec['name'])
+                    components.iframe(f"https://open.spotify.com/embed/track/{rec['id']}", height=80)
