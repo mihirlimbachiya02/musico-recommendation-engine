@@ -1,7 +1,6 @@
 import streamlit as st
 import spotipy
-# Remove: from spotipy.oauth2 import SpotifyOAuth
-from spotipy.oauth2 import SpotifyClientCredentials 
+from spotipy.oauth2 import SpotifyOAuth
 import streamlit.components.v1 as components
 from youtube_search import YoutubeSearch
 import pandas as pd
@@ -24,18 +23,11 @@ local_css("style.css")
 # --- 3. AUTHENTICATION ---
 @st.cache_resource
 def get_spotify_client():
-    # Try getting keys from Streamlit Cloud Secrets
-    try:
-        client_id = st.secrets["SPOTIPY_CLIENT_ID"]
-        client_secret = st.secrets["SPOTIPY_CLIENT_SECRET"]
-    except KeyError:
-        # Fallback for local running (if you haven't set up secrets locally)
-        client_id = 'YOUR_ACTUAL_CLIENT_ID'
-        client_secret = 'YOUR_ACTUAL_CLIENT_SECRET'
-
-    return spotipy.Spotify(auth_manager=SpotifyClientCredentials(
-        client_id=client_id,
-        client_secret=client_secret
+    return spotipy.Spotify(auth_manager=SpotifyOAuth(
+        client_id='YOUR_CLIENT_ID_HERE',          # <--- PASTE REAL ID
+        client_secret='YOUR_CLIENT_SECRET_HERE',  # <--- PASTE REAL SECRET
+        redirect_uri='http://127.0.0.1:8888/callback',
+        scope="user-library-read"
     ))
 
 # --- UPDATED FUNCTION: GETS STATS NOW ---
