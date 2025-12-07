@@ -76,7 +76,7 @@ with st.container():
     col_a, col_b, col_c = st.columns([1, 3, 1])
     with col_b:
         with st.form(key='search_form'):
-            search_query = st.text_input("", placeholder="🔍 Search for a song (e.g. Tumhe Dillagi)...", label_visibility="collapsed")
+            search_query = st.text_input("", placeholder="🔍 Search for a song", label_visibility="collapsed")
             submit_button = st.form_submit_button(label='Search')
 
 # --- 5. MAIN LOGIC ---
