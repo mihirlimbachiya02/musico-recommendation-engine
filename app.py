@@ -1,151 +1,167 @@
 import streamlit as st
-import spotipy
-from spotipy.oauth2 import SpotifyOAuth
-import streamlit.components.v1 as components
-from youtube_search import YoutubeSearch
-import pandas as pd
-import plotly.express as px
-import time
+from ytmusicapi import YTMusic
+from pymongo import MongoClient
+from pymongo.server_api import ServerApi
+import certifi
 
 # --- 1. PAGE CONFIG ---
-st.set_page_config(page_title="Musico", page_icon="🎵", layout="wide")
+st.set_page_config(page_title="Musico YT", page_icon="🎵", layout="wide")
 
-# --- 2. LOAD EXTERNAL CSS ---
+# --- 2. DATABASE SETUP ---
+@st.cache_resource
+def init_db():
+    try:
+        MONGO_URI = st.secrets["MONGO_URI"]
+        client = MongoClient(
+            MONGO_URI, 
+            server_api=ServerApi('1'), 
+            tlsCAFile=certifi.where()
+        )
+        client.admin.command('ping')
+        return client.musico_db 
+    except Exception as e:
+        st.error(f"Database Connection Error: {e}")
+        st.stop()
+
+db = init_db()
+playlist_col = db.my_playlist
+
+@st.cache_resource
+def get_yt(): 
+    return YTMusic()
+
+yt = get_yt()
+
+# --- 3. LOAD EXTERNAL CSS ---
 def local_css(file_name):
     try:
         with open(file_name) as f:
             st.markdown(f'<style>{f.read()}</style>', unsafe_allow_html=True)
-    except FileNotFoundError:
-        st.warning(f"Could not find {file_name}. Make sure it is in the same folder as app.py")
+    except FileNotFoundError: 
+        pass
 
 local_css("style.css")
 
-# --- 3. AUTHENTICATION ---
-@st.cache_resource
-def get_spotify_client():
-    return spotipy.Spotify(auth_manager=SpotifyOAuth(
-        client_id='YOUR_CLIENT_ID_HERE',          # <--- PASTE REAL ID
-        client_secret='YOUR_CLIENT_SECRET_HERE',  # <--- PASTE REAL SECRET
-        redirect_uri='http://127.0.0.1:8888/callback',
-        scope="user-library-read"
-    ))
-
-# --- UPDATED FUNCTION: GETS STATS NOW ---
-def get_youtube_data(song_name, artist_name):
-    query = f"{song_name} {artist_name} official audio"
-    try:
-        results = YoutubeSearch(query, max_results=1).to_dict()
-        if results:
-            video = results[0]
-            video_id = video['id']
-            link = f"https://www.youtube.com/watch?v={video_id}"
-            thumbnail = video['thumbnails'][0]
-            
-            # Extract stats (Views, Duration, Channel)
-            views = video.get('views', 'N/A')
-            duration = video.get('duration', 'N/A')
-            channel = video.get('channel', 'Unknown Channel')
-            
-            return link, thumbnail, video_id, views, duration, channel
-    except:
-        return None, None, None, None, None, None
-    return None, None, None, None, None, None
-
-try:
-    sp = get_spotify_client()
-except:
-    st.error("Authentication failed. Check your keys.")
-    st.stop()
-
-# --- 4. HERO SECTION ---
-col1, col2, col3 = st.columns([1, 2, 1])
-with col2:
-    st.title("🎵 Musico")
-    st.write("The Universal Music Finder")
-
-# Search Bar
-with st.container():
-    col_a, col_b, col_c = st.columns([1, 3, 1])
-    with col_b:
-        with st.form(key='search_form'):
-            search_query = st.text_input("", placeholder="🔍 Search for a song", label_visibility="collapsed")
-            submit_button = st.form_submit_button(label='Search')
-
-# --- 5. MAIN LOGIC ---
-if submit_button and search_query:
-    with st.spinner('Searching Spotify & YouTube databases...'):
-        time.sleep(1) 
-        results = sp.search(q=search_query, type='track', limit=1)
+# --- 4. SIDEBAR (LIBRARY) ---
+with st.sidebar:
+    st.markdown("# 📂 My Library")
     
-    if not results['tracks']['items']:
-        st.error("Song not found.")
+    # FETCH SONGS: Pull fresh data every rerun
+    saved_songs = list(playlist_col.find())
+    
+    if "current_track" in st.session_state:
+        st.markdown("---")
+        st.caption("🎧 NOW PLAYING")
+        st.info(f"**{st.session_state.current_track}**")
+    
+    st.markdown("---")
+    
+    if not saved_songs:
+        st.info("Your library is empty.")
     else:
-        track = results['tracks']['items'][0]
-        artist = track['artists'][0]
-        
-        # Call the new function
-        yt_url, yt_thumb, yt_id, yt_views, yt_duration, yt_channel = get_youtube_data(track['name'], artist['name'])
+        for song in saved_songs:
+            with st.expander(f"🎶 {song['title'][:20]}..."):
+                st.write(f"👤 **Artist:** {song['artist']}")
+                col_p, col_d = st.columns(2)
+                with col_p:
+                    if st.button("▶️ Play", key=f"lib_p_{song['videoId']}"):
+                        st.session_state.search_value = f"{song['title']} {song['artist']}"
+                        st.session_state.current_track = song['title']
+                        st.rerun()
+                with col_d:
+                    if st.button("🗑️ Del", key=f"lib_d_{song['videoId']}"):
+                        playlist_col.delete_one({"videoId": song['videoId']})
+                        st.rerun()
+    
+    st.markdown("---")
+    if st.button("⚠️ Clear All Data", use_container_width=True):
+        playlist_col.delete_many({})
+        if "current_track" in st.session_state:
+            del st.session_state.current_track
+        st.rerun()
 
-        # TABS LAYOUT
-        tab1, tab2, tab3 = st.tabs(["🎧 Player", "📊 Audio Stats", "🔥 Similar Songs"])
+# --- 5. MAIN INTERFACE ---
+st.markdown("<h1>📺 Musico YT</h1>", unsafe_allow_html=True)
 
-        # TAB 1: PLAYER
-        with tab1:
-            c1, c2 = st.columns([1, 1])
-            with c1:
-                st.subheader("Spotify Audio")
-                st.image(track['album']['images'][0]['url'], width=300)
-                st.markdown(f"### {track['name']}")
-                st.caption(f"by {artist['name']}")
-                components.iframe(f"https://open.spotify.com/embed/track/{track['id']}", height=80)
+triggered_search = st.session_state.get("search_value", "")
+
+with st.form(key='search_form', clear_on_submit=False):
+    col_input, col_btn = st.columns([4, 1])
+    with col_input:
+        search_query = st.text_input(
+            "Search", 
+            value=triggered_search, 
+            placeholder="🔍 Search for a song or artist...", 
+            label_visibility="collapsed"
+        )
+    with col_btn:
+        submit_search = st.form_submit_button("Search", use_container_width=True)
+
+# EXECUTE SEARCH
+if (submit_search or triggered_search) and search_query:
+    st.session_state.search_value = "" 
+    
+    with st.spinner("Finding your track..."):
+        results = yt.search(search_query, filter="songs", limit=1)
+    
+    if results:
+        track = results[0]
+        v_id, title, thumb = track['videoId'], track['title'], track['thumbnails'][-1]['url']
+        artist = track['artists'][0]['name']
+
+        with st.container():
+            col_img, col_play = st.columns([1, 1.5], gap="large")
             
-            with c2:
-                st.subheader("YouTube Video")
-                if yt_url:
-                    st.video(yt_url)
+            with col_img:
+                st.image(thumb, use_container_width=True)
+                st.write("")
+                
+                # RE-FIXED LOGIC: Everything nested correctly under col_img
+                is_saved = playlist_col.find_one({"videoId": v_id})
+                
+                if is_saved:
+                    st.button("✅ Already in Library", disabled=True, use_container_width=True)
                 else:
-                    st.warning("Video not found")
+                    if st.button("⭐ Save to Library", key=f"save_{v_id}", use_container_width=True):
+                        try:
+                            playlist_col.insert_one({
+                                "videoId": v_id, 
+                                "title": title, 
+                                "artist": artist, 
+                                "thumb": thumb
+                            })
+                            st.toast(f"Saved {title}!")
+                            st.rerun()
+                        except Exception as e:
+                            st.error(f"Error: {e}")
 
-        # TAB 2: STATS (YouTube + Spotify)
-        with tab2:
-            st.subheader("📈 Track Statistics")
-            
-            # 1. Show YouTube Stats First (They always exist!)
-            col_a, col_b, col_c = st.columns(3)
-            col_a.metric("YouTube Views", yt_views.split(' ')[0] if yt_views else "N/A") # Clean up 'views' text
-            col_b.metric("Duration", yt_duration)
-            col_c.metric("Channel", yt_channel)
-            
-            st.divider()
+            with col_play:
+                st.markdown(f"<h2>{title}</h2>", unsafe_allow_html=True)
+                st.markdown(f"""
+                    <p style='background: linear-gradient(90deg, #ff4d4d, #8a2be2); 
+                                -webkit-background-clip: text; 
+                                -webkit-text-fill-color: transparent; 
+                                font-size:1.4rem; font-weight:700; margin-top:0;'>
+                        {artist}
+                    </p>
+                """, unsafe_allow_html=True)
+                st.video(f"https://www.youtube.com/watch?v={v_id}")
 
-            # 2. Show Spotify Vibe Stats (If available)
-            st.subheader("🎵 Spotify Vibe Analysis")
-            features = None
-            try:
-                features = sp.audio_features([track['id']])[0]
-            except Exception:
-                features = None
-            
-            if features:
-                stats = {
-                    'Feature': ['Danceability', 'Energy', 'Valence (Happy)', 'Acousticness'],
-                    'Value': [features['danceability'], features['energy'], features['valence'], features['acousticness']]
-                }
-                df_stats = pd.DataFrame(stats)
-                fig = px.bar(df_stats, x='Feature', y='Value', color='Value', 
-                             color_continuous_scale='Greens', range_y=[0, 1])
-                fig.update_layout(plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)', font_color="white")
-                st.plotly_chart(fig, use_container_width=True)
-            else:
-                st.info("⚠️ Spotify Audio Features (Energy/Danceability) are restricted for this track.")
-
-        # TAB 3: RECOMMENDATIONS
-        with tab3:
-            st.subheader(f"More from {artist['name']}")
-            top_tracks = sp.artist_top_tracks(artist['id'], country='IN')
+        st.divider()
+        st.subheader("🔥 Recommended Next")
+        try:
+            suggestions = yt.get_watch_playlist(videoId=v_id, limit=5)['tracks']
             cols = st.columns(4)
-            for idx, rec in enumerate(top_tracks['tracks'][:4]):
-                with cols[idx]:
-                    st.image(rec['album']['images'][0]['url'])
-                    st.caption(rec['name'])
-                    components.iframe(f"https://open.spotify.com/embed/track/{rec['id']}", height=80)
+            for i, rec in enumerate(suggestions[1:5]):
+                with cols[i]:
+                    img_url = rec['thumbnail'][0]['url']
+                    rec_artist = rec['artist'][0]['name'] if rec['artist'] else "Unknown"
+                    st.markdown(f'<div style="height:160px; overflow:hidden; border-radius:15px; margin-bottom:10px;"><img src="{img_url}" style="width:100%; height:100%; object-fit:cover;"></div>', unsafe_allow_html=True)
+                    st.write(f"**{rec['title'][:22]}**")
+                    if st.button("Listen", key=f"rec_{rec['videoId']}", use_container_width=True):
+                        st.session_state.search_value = f"{rec['title']} {rec_artist}"
+                        st.rerun()
+        except: 
+            pass
+    else: 
+        st.error("No results found.")

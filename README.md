@@ -1,28 +1,31 @@
-# 🎵 Musico 
+# 🎵 Musico YT: The Ultimate YouTube Music Finder
 
-**Search once, listen everywhere.**
-Musico is a smart music recommendation engine that bridges the gap between Spotify and YouTube. It allows you to search for songs via Spotify's powerful metadata and instantly watch the corresponding music video on YouTube without ads or login.
+Musico YT is a modern, high-performance web application built with **Streamlit** that allows users to search for any song on YouTube Music, play full videos directly in the browser, and manage a persistent personal library powered by **MongoDB Atlas**.
 
-## ✨ Features
-- **Dual-Platform Integration:** Search on Spotify, Watch on YouTube.
-- **Embedded Player:** Play 30s audio previews (Spotify) or full music videos (YouTube) directly in the app.
-- **Smart Links:** Auto-generates search links for **Apple Music** and **YouTube Music**.
-- **Recommendation Engine:** Suggests similar tracks based on Artist algorithms.
-- **Clean UI:** Built with Streamlit for a responsive, dark-mode interface.
+## 🚀 Features
+
+* **YT Music Engine**: Search for tracks, artists, and albums using the `ytmusicapi`.
+* **Integrated Player**: Watch full YouTube videos without leaving the app.
+* **Smart Recommendations**: "YouTube Radio" style suggestions based on your current search.
+* **Persistent Library**: Save your favorite tracks to a cloud-based **MongoDB** database.
+* **Modern UI**: Custom CSS with a "YouTube Dark Mode" aesthetic and glassmorphism effects.
+* **Secure Coding**: Credential protection using Streamlit Secrets and `.gitignore` for safe public deployments.
 
 ## 🛠️ Tech Stack
-- **Python 3.x**
-- **Streamlit** (Frontend)
-- **Spotipy** (Spotify API Client)
-- **Youtube-Search** (Video Scraper)
 
-## How to Run Locally
-1. Clone this repository
-2. Install requirements:
-   `pip install -r requirements.txt`
-3. Create a Spotify App at [developer.spotify.com](https://developer.spotify.com)
-   - Set Redirect URI to: `http://127.0.0.1:8888/callback`
-4. Add your Client ID and Secret to `app.py`
-5. Run the app:
-   `streamlit run app.py`
+* **Frontend**: [Streamlit](https://streamlit.io/)
+* **Music API**: [ytmusicapi](https://ytmusicapi.readthedocs.io/)
+* **Database**: [MongoDB Atlas](https://www.mongodb.com/cloud/atlas)
+* **Data Visualization**: [Plotly](https://plotly.com/python/) & [Pandas](https://pandas.pydata.org/)
+* **Styling**: Custom CSS (External)
 
+## 📂 Project Structure
+
+```text
+Musico/
+├── .streamlit/
+│   └── secrets.toml      # Local storage for MongoDB URI (Hidden)
+├── app.py                # Main Application Logic
+├── style.css             # Custom YouTube Dark Mode Theme
+├── requirements.txt      # Project Dependencies
+└── .gitignore            # Prevents sensitive files from being pushed to GitHub
